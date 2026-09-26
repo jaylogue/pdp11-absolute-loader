@@ -1,0 +1,219 @@
+.MAIN.  MACRO RSTS/E V6.0                       29-MAY-75 15:57  PAGE 1
+      1                                 ;
+      2                                 ;
+      3                                 ; PDP-11 ABSOLUTE BINARY LOADER -- VA07.00
+      4                                 ;       DEC-11-UABLA-A-LA
+      5                                 ;
+      6                                 ;
+      7                                 ;
+      8                                 ;       DIGITAL EQUIPMENT CORPORATION, MAYNARD, MASS
+      9                                 ;
+     10                                 ;
+     11                                 ;       THIS SOFTWARE IS FURNISHED UNDER A LICENSE FOR USE ONLY
+     12                                 ;       ON A SINGLE COMPUTER SYSTEM AND MAY BE COPIED ONLY WITH
+     13                                 ;       THE INCLUSION OF THE ABOVE COPYRIGHT NOTICE. THIS
+     14                                 ;       SOFTWARE, OR ANY OTHER COPIES THEREOF, MAY NOT BE PROVIDED
+     15                                 ;       OR OTHERWISE MADE AVAILABLE TO ANY OTHER PERSON EXCEPT FOR
+     16                                 ;       USE ON SUCH SYSTEM AND TO ONE WHO AGREES TO THESE LICENSE
+     17                                 ;       TERMS. TITLE TO AND OWNERSHIP OF THE SOFTWARE SHALL AT ALL
+     18                                 ;       TIMES REMAIN IN DIGITAL EQUIPMENT CORPORATION.
+     19                                 ;
+     20                                 ;       THE INFORMATION IN THIS DOCUMENT IS SUBJECT TO CHANGE
+     21                                 ;       WITHOUT NOTICE AND SHOULD NOT BE CONSTRUED AS A COMMITMENT
+     22                                 ;       BY DIGITAL EQUIPMENT CORPORATION.
+     23                                 ;
+     24                                 ;       DIGITAL EQUIPMENT CORPORATION ASSUMES NO RESPONSIBILITY FOR THE USE
+     25                                 ;
+     26                                 ;       OR RELIABILITY OF ITS SOFTWARE ON EQUIPMENT WHICH IS NOT SUPPLIED
+     27                                 ;       BY DIGITAL EQUIPMENT CORPORATION
+     28                                 ;
+     29                                 ;
+     30                                 ;   INPUT FORMAT --
+     31                                 ;       FRAME   -1   001
+     32                                 ;               -2   000
+     33                                 ;               -3   BYTE COUNT - LOWER ORDER
+     34                                 ;               -4   BYTE COUNT - HIGHER ORDER
+     35                                 ;               -5   LOAD ADDRESS - LOWER ORDER
+     36                                 ;               -6   LOAD ADDRESS - HIGHER ORDER
+     37                                 ;                         .       DATA
+     38                                 ;                         .          PLACED
+     39                                 ;                          .              HERE
+     40                                 ;                CKSM - LAST FRAME CONTAINS THE CHECKSUM
+     41                                 ;
+     42                                 ;  IF THE BYTE COUNT IS EQUAL TO 6, THE LOAD ADDRESS
+     43                                 ;  SPECIFIED WILL BE CONSIDERED TO BE THE DESIRED JUMP
+     44                                 ;  ADDRESS. IF THIS ADDRESS IS ODD, THE LOADER WILL HALT,
+     45                                 ;
+     46                                 ;
+     47                                 ;  IF THE BYTE COUNT IS > 6, DATA WILL BE LOADED INTO MEMORY,
+     48                                 ;
+     49                                 ;
+     50                                 ;  STORAGE REQUIRED = 75 WORDS, REGISTEREDS USED = R1,R2,R3,R4,R5,R6,R7,
+     51                                 ;
+     52                                 ;  PROGRAMMING CONSIDERATIONS AND CAUTIONS = TWO WORDS IMMEDIATELY
+     53                                 ;     PRECEDING L.DEV ARE USED FOR THE LOADER SP STACK,
+     54                                 ;
+     55                                 ;
+     56                                 ;
+     57                                 ; OPERATING  INSTRUCTIONS:
+
+.MAIN.  MACRO RSTS/E V6.0                       29-MAY-75 15:57  PAGE 1-1
+     58                                 ;       1.  USING THE BOOT LOADER, LOAD THE ABS LOADER TAPE.
+     59                                 ;       2   THE DEVICE ADDRESS USED WILL BE LOCATED IN THE LAST WORD
+     60                                 ;           OF THE BOOT LOADER(USUALLY 17776). IF THIS DEVICE
+     61                                 ;           ADDRESS IS ZERO THE ABSOLUTE LOADER WILL NOT RUN.
+     62                                 ;       3.  PLACE THE ABSOLUTE LOADER LOAD ADDRESS IN THE SWITCH
+     63                                 ;           REGISTER AND PRESS LOAD ADDRESS.
+     64                                 ;       4.  PLACE THE RELOCATION FACTOR, IF ANY, IN THE SWITCH
+     65                                 ;           REGISTER.
+     66                                 ;       5.   PRESS START.
+     67                                 ;       6.  IF THE LOADER HALTS WHEN DONE IT IS ONLY NECESSARY TO
+     68                                 ;           DO STEP 4 AND PRESS CONTINUE TO READ IN ADDITIONAL TAPES.
+     69         000000                  L.CKSM =        %0
+     70         000001                  L.ADR  =        %1
+     71         000002                  L.BC   =        %2
+     72         000003                  L.BYT  =        %3
+     73         000004                  R4     =        %4
+     74         000005                  L.PTR  =        %5
+     75         000006                  SP     =        %6
+     76         000007                  PC      =       %7                      ;PROGRAM COUNTER
+     77         177570                  L.SR    =       177570                  ;SWITCH REGISTER
+     78                                 ;
+     79                                 ;
+     80                                         .ASECT
+     81         017400                  LOAD    =17400                  ;BOOTSTRAP FORMATED TAPES MAY
+     82         017475                          .=LOAD+75               ;NOT BE LOADED BELOW THIS ADDRESS
+     83 017475     075                          .BYTE 75
+     84         017776                  L.DEV   =       DEVICE          ;DEVICE ADDRESS IN BOOT LOADER
+     85 017476  000000                  L.LOAD: HALT
+     86                                 ;
+     87                                 ;
+     88                                 ;
+     89                                 ; START OF LOADER
+     90                                 ;
+     91 017500  010706                  L.LD1:  MOV     PC,SP           ;SET UP STACK
+     92 017502  024646                          CMP     -(SP),-(SP)     ; TO START AT L.LD1-2
+     93 017504  010705                          MOV     PC,L.PTR        ;GET RELOCATED
+     94 017506  062705  000112                  ADD     #L.READ-.,L.PTR ;   START ADDRESS OF READ ROUTINE
+     95 017512  005001                          CLR     L.ADR           ;CLEAR THE ROAD ADDRESS
+     96 017514  013716  177570          L.LD1B: MOV     @#L.SR,@SP      ;PICK UP THE CONTENTS OF SR AND SAVE
+     97 017520  006016                          ROR     @SP             ;CHECK  RELOCATION FACTOR
+     98 017522  103402                          BCS     L.LD1C          ;JUMP IF SOME RELOCATION NEEDED
+     99 017524  005016                          CLR     @SP             ;USE ADDRESS SPECIFIED ON THE TAPE
+    100 017526  000403                          BR      L.LD2           ;GO DO LOAD
+    101 017530  006316                  L.LD1C: ASL     @SP             ;CHECK FOR NON-ZERO
+    102 017532  001001                          BNE     L.LD2           ;JUMP IF LOAD ADDRESS SPECIFIED
+    103 017534  010116                          MOV     L.ADR,@SP       ;OTHERWISE CONTINUE LOADING FROM LAST LOAD
+    104                                 ;
+    105                                 ; LOOK FOR THE BEGINNING OF A BLOCK
+    106 017536  005000                  L.LD2:  CLR     L.CKSM          ;INITIALIZE CHECKSUM
+    107 017540  004715                          JSR     PC,@L.PTR       ;READ A FRAME
+    108 017542  105303                          DECB    L.BYT           ;CHECK FOR +1 (START OF A BLOCK)
+    109 017544  001374                          BNE     L.LD2           ;LOOP UNTIL +1 IS FOUND
+    110 017546  004715                          JSR     PC,@L.PTR       ;READ ANOTHER FRAME
+    111                                 ;
+    112                                 ; INPUT AND SAVE BYTE COUNT, IF BYTE COUNT IS EQUAL TO 6
+    113                                 ;  GO TO PROCEED JUMP
+    114                                 ;
+
+.MAIN.  MACRO RSTS/E V6.0                       29-MAY-75 15:57  PAGE 1-2
+    115 017550  004767  000074                  JSR     PC,L.GWRD       ;GET FULL BYTE COUNT
+    116 017554  010402                          MOV     R4,L.BC         ;
+    117 017556  162702  000004                  SUB     #4,L.BC         ;SUBTRACT 4 TO MAKE BYTE COUNT CORRECT
+    118 017562  022702  000002                  CMP     #2,L.BC         ;WAS BYTE COUNT EQUAL TO 6?
+    119 017566  001441                          BEQ     L.JMP           ;JUMP IF NO DATA (E.G. - JUMP BLOCK)
+    120 017570  004767  000054                  JSR     PC,L.GWRD       ;GET LOAD ADDRESS
+    121 017574  061604                          ADD     @SP,R4          ;GENERATE ACTUAL ADDRESS
+    122 017576  010401                          MOV     R4,L.ADR        ;AND PUT IT INTO THE PROPER CELL
+    123                                 ;
+    124                                 ; READ IN REMAINDER OF DATA
+    125                                 ;  IF THE LOADER HALTS AT L.BAD, A CHECKSUM ERROR
+    126                                 ;  HAS OCCURED.  R3 WILL CONTAIN THE EXPECTED CHECKSUM,
+    127                                 ;  AND R0 WILL CONTAIN THE DEVIATION FROM THE EXPECTED
+    128                                 ;  CHECKSUM.
+    129                                 ;
+    130 017600  004715                  L.LD3:  JSR     PC,@L.PTR       ;READ A FRAME
+    131 017602  002004                          BGE     L.LD4           ;BRANCH IF MORE DATA REMAINS
+    132 017604  105700                          TSTB    L.CKSM          ;IF CHECKSUM IS
+    133 017606  001753                          BEQ     L.LD2           ;CORRECT, THEN CONTINUE
+    134 017610  000000                  L.BAD:  HALT                    ;CHECKSUM ERROR
+    135 017612  000751                          BR      L.LD2           ;PRESS CONTINUE TO IGNORE CHECKSUM
+    136 017614  110321                  L.LD4:  MOVB    L.BYT,(L.ADR)+  ;STORE 8 BITS AT A TIME
+    137 017616  000770                          BR      L.LD3           ;    THE RE-LOOP
+    138                                 ;
+    139                                 ; INPUT A FRAME, DECREMENT BYTE COUNT, AND ACCUMULATE CHECKSUM
+    140                                 ;
+    141 017620  016703  000152          L.READ: MOV     L.DEV,L.BYT     ;DEVICE ADDRESS TO L.BYT
+    142 017624  105213                          INCB    @L.BYT          ;SELECT READER
+    143 017626  105713                  L.R1:   TSTB    @L.BYT          ;DONE ?
+    144 017630  100376                          BPL     L.R1            ;NO
+    145 017632  116303  000002                  MOVB    2(L.BYT),L.BYT  ;GET CHARACTER
+    146 017636  060300                          ADD     L.BYT,L.CKSM    ;ADD TO CHECKSUM
+    147 017640  042703  177400                  BIC     #177400,L.BYT ;MASK OFF JUNK
+    148 017644  005302                          DEC     L.BC            ;DECREMENT BYTE COUNT BY ONE
+    149 017646  000207                          RTS     PC
+    150                                 ;
+    151                                 ; ASSEMBLE ONE FULL WORD OF DATA
+    152                                 ;
+    153 017650  012667  000046          L.GWRD: MOV     (SP)+,L.TMP     ;SAVE RETURN IN TEMPORY
+    154 017654  004715                          JSR     PC,@L.PTR       ;GET ONE CHARACTER
+    155 017656  010304                          MOV     L.BYT,R4        ;SAVE R3 IN TEMPORARY
+    156 017660  004715                          JSR     PC,@L.PTR       ;GET ANOTHER FRAME
+    157 017662  000303                          SWAB    L.BYT           ;PLACE ANOTHER FRAME
+    158 017664  050304                          BIS     L.BYT,R4        ;ASSEMBLE BOTH FRAMES INTO A COMPLETE WORD
+    159 017666  016707  000030                  MOV     L.TMP,PC        ;RETURN
+    160                                 ;
+    161                                 ; CHECK CORRECTNESS OF JUMP ADDRESS
+    162                                 ; HALT IF ADDRESS IS ODD, JUMP TO PROGRAM IF ADDRESS IS EVEN
+    163                                 ;
+    164 017672  004767  177752          L.JMP:  JSR     PC,L.GWRD       ;GET POSSIBLE TRANSFER ADDRESS
+    165 017676  004715                          JSR     PC,@L.PTR       ;GET CHECKSUM
+    166 017700  105700                          TSTB    L.CKSM          ;IF INCORRECT
+    167 017702  001342                          BNE     L.BAD           ; GO TO CHECKSUM HALT ADDRESS
+    168 017704  006204                          ASR     R4              ;GET LOW ORDER BIT
+    169 017706  103002                          BCC     L.JMP1          ;SKIP IF ADDRESS IS EVEN
+    170 017710  000000                          HALT                    ;OTHERWISE HALT
+    171 017712  000700                          BR      L.LD1B          ;RETURN TO START OF LOADING LOOP
+
+.MAIN.  MACRO RSTS/E V6.0                       29-MAY-75 15:57  PAGE 1-3
+    172 017714  006304                  L.JMP1: ASL     R4              ;RESTORE REGISTER
+    173 017716  061604                          ADD     @SP,R4
+    174 017720  000114                          JMP     @R4             ;JUMP TO USER
+    175 017722  000000                  L.TMP:  .WORD   0               ;TEMPORY TO SAVE STACK SPACE
+    176                                 ;
+    177                                 ;INITIALIZATION TO RESTORE THE BOOTSTRAP LOADER
+    178                                 ;
+    179 017724  012767  000352  000020  L.INIT: MOV     #352,LOOP+2             ;RESTORE OFFSET IN BOOTSTRTAP LOADER
+    180 017732  012767  000765  000034          MOV     #765,BRNCH              ;RESTORE "BR" AT BRNCH
+    181 017740  000167  177532                  JMP     L.LOAD                  ;GO HALT AND WAIT FOR "CONT"
+    182                                                                         ;OVERLAY BOOTSTRAP LOADER CODE
+    183                                 ;THE FOLLOWING CODE OVERLAY THE BOOTSTRAP LOADER
+    184 017744  016701  000026          START:  MOV     DEVICE,R1
+    185 017750  012702                  LOOP:   MOV     (PC)+,R2
+    186 017752     373                          .BYTE BRNCH-LOAD-1
+    187 017753     353                          .BYTE -<BRNCH-L.INIT+2/2>
+    188         017774                          .=LOAD+374
+    189 017774                          BRNCH:  ;BR     START
+    190         017776                          .=.+2
+    191 017776                          DEVICE: ;0                              ADDRESS OF BOOT DEVICE' COMMAND
+    192                                         ;                               STATUS REGISTER IS STORED HERE BY
+    193                                         ;                               THE BOOTSTRAP ROM
+    194         000001'                         .END
+
+.MAIN.  MACRO RSTS/E V6.0                       29-MAY-75 15:57  PAGE 1-4
+SYMBOL TABLE
+BRNCH   017774          DEVICE  017776          LOAD  = 017400
+LOOP    017750          L.ADR =%000001          L.BAD   017610
+L.BC  =%000002          L.BYT =%000003          L.CKSM=%000000
+L.DEV = 017776          L.GWRD  017650          L.INIT  017724
+L.JMP   017672          L.JMP1  017714          L.LD1   017500
+L.LD1B  017514          L.LD1C  017530          L.LD2   017536
+L.LD3   017600          L.LD4   017614          L.LOAD  017476
+L.PTR =%000005          L.READ  017620          L.R1    017626
+L.SR  = 177570          L.TMP   017722          START   017744
+. ABS.  017776    000
+        000000    001
+ERRORS DETECTED:  0
+
+FREE CORE:  9152. WORDS
+ABSLA7.OBJ,ABSLA7.LST=ABSLA7.MAC
